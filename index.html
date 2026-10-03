@@ -80,6 +80,17 @@ body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
 
   let started = false;
 
+  // ===== ตั้งค่าระดับเสียง (0 - 100) =====
+  const START_VOL = 20;  // ระดับเสียงตอนเริ่มเล่น
+  const MAX_VOL   = 50;  // เพดานเสียงสูงสุด (แถบเลื่อนจะเลื่อนเกินนี้ไม่ได้)
+  slider.max = MAX_VOL;
+  slider.value = Math.min(START_VOL, MAX_VOL);
+  visual.volume = slider.value / 100;
+  // บังคับไม่ให้เกินเพดาน แม้มีอะไรมาเปลี่ยนค่า
+  visual.addEventListener('volumechange', function(){
+    if(visual.volume > MAX_VOL / 100) visual.volume = MAX_VOL / 100;
+  });
+
   function goFullscreen(){
     const el = document.documentElement;
     const req = el.requestFullscreen || el.webkitRequestFullscreen;
@@ -108,7 +119,7 @@ body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
   mute.addEventListener('click', function(){
     if(visual.muted || visual.volume === 0){
       visual.muted = false;
-      if(visual.volume === 0){ visual.volume = 1; slider.value = 100; }
+      if(visual.volume === 0){ slider.value = Math.min(START_VOL, MAX_VOL); visual.volume = slider.value / 100; }
     }else{
       visual.muted = true;
     }
