@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<title>Credit Demo</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden;overscroll-behavior:none;touch-action:manipulation}
+body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
+#stage{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;overflow:hidden;background:#000}
+#stage:fullscreen{width:100%;height:100%}
+#visual{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;background:#000}
+#tap{position:absolute;inset:0;z-index:3;-webkit-tap-highlight-color:transparent;cursor:pointer}
+#icon{
+  position:absolute;left:50%;top:50%;width:84px;height:84px;margin:-42px 0 0 -42px;z-index:4;
+  border-radius:50%;background:rgba(0,0,0,.45);display:grid;place-items:center;
+  opacity:0;transform:scale(.8);pointer-events:none;transition:opacity .25s ease,transform .25s ease;
+}
+#icon.show{opacity:1;transform:scale(1)}
+#icon svg{width:36px;height:36px;fill:#fff}
+#vol{
+  position:absolute;left:50%;transform:translateX(-50%);
+  bottom:max(20px,env(safe-area-inset-bottom));
+  z-index:6;display:none;align-items:center;gap:12px;
+  padding:10px 16px;border-radius:999px;background:rgba(0,0,0,.5);
+  width:min(320px,86vw);
+}
+#vol.on{display:flex}
+#mute{appearance:none;border:0;background:none;padding:0;width:26px;height:26px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#mute svg{width:26px;height:26px;fill:#fff;display:block}
+#slider{flex:1;height:28px;accent-color:#fff;cursor:pointer;margin:0}
+#enter{position:absolute;inset:0;z-index:5;display:grid;place-items:center;background:rgba(0,0,0,.25);transition:opacity .6s ease}
+#enter.hidden{opacity:0;pointer-events:none}
+#start{
+  appearance:none;border:1px solid rgba(255,255,255,.85);background:rgba(0,0,0,.42);color:#fff;
+  border-radius:999px;padding:15px 34px;font-size:14px;letter-spacing:.2em;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+#start:active{transform:scale(.97)}
+</style>
+</head>
+<body>
+<main id="stage">
+  <video id="visual" src="Memolody.mp4" playsinline webkit-playsinline preload="auto" loop></video>
+
+  <div id="tap"></div>
+
+  <div id="icon">
+    <svg id="icoPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+  </div>
+
+  <div id="vol">
+    <button id="mute" type="button" aria-label="Mute">
+      <svg id="icoVol" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+      <svg id="icoMute" viewBox="0 0 24 24" style="display:none"><path d="M16.5 12A4.5 4.5 0 0 0 14 8v2.2l2.5 2.5V12zM19 12a7 7 0 0 1-.9 3.4l1.5 1.5A9 9 0 0 0 21 12a9 9 0 0 0-7-8.8v2.1A7 7 0 0 1 19 12zM4.3 3 3 4.3 7.7 9H3v6h4l5 5v-6.7l4.3 4.3c-.7.5-1.4.9-2.3 1.2v2.1a9 9 0 0 0 3.5-1.7l2 2 1.3-1.3L4.3 3zM12 4 9.9 6.1 12 8.2V4z"/></svg>
+    </button>
+    <input id="slider" type="range" min="0" max="100" value="100" aria-label="Volume">
+  </div>
+
+  <div id="enter"><button id="start" type="button">ENTER</button></div>
+</main>
+
+<script>
+(function(){
+  const visual = document.getElementById('visual');
+  const enter  = document.getElementById('enter');
+  const start  = document.getElementById('start');
+  const tap    = document.getElementById('tap');
+  const icon   = document.getElementById('icon');
+  const vol    = document.getElementById('vol');
+  const slider = document.getElementById('slider');
+  const mute   = document.getElementById('mute');
+  const icoVol = document.getElementById('icoVol');
+  const icoMute= document.getElementById('icoMute');
+
+  let started = false;
+
+  function goFullscreen(){
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if(req){
+      try{
+        const r = req.call(el, {navigationUI:'hide'});
+        if(r && r.catch) r.catch(function(){});
+      }catch(_){}
+    }
+  }
+
+  function refreshMuteIcon(){
+    const off = visual.muted || visual.volume === 0;
+    icoVol.style.display  = off ? 'none' : 'block';
+    icoMute.style.display = off ? 'block' : 'none';
+  }
+
+  // Volume slider (note: iPhone ignores video.volume; use the side buttons there)
+  slider.addEventListener('input', function(){
+    const v = slider.value / 100;
+    visual.volume = v;
+    visual.muted = (v === 0);
+    refreshMuteIcon();
+  });
+
+  mute.addEventListener('click', function(){
+    if(visual.muted || visual.volume === 0){
+      visual.muted = false;
+      if(visual.volume === 0){ visual.volume = 1; slider.value = 100; }
+    }else{
+      visual.muted = true;
+    }
+    refreshMuteIcon();
+  });
+
+  // Tap anywhere (except the volume bar) to pause / resume
+  tap.addEventListener('click', function(){
+    if(!started) return;
+    if(visual.paused){
+      visual.play().catch(function(){});
+    }else{
+      visual.pause();
+    }
+  });
+  visual.addEventListener('pause', function(){ icon.classList.add('show'); });
+  visual.addEventListener('play',  function(){ icon.classList.remove('show'); });
+
+  document.addEventListener('keydown', function(e){
+    if(e.code==='Space' && started){
+      e.preventDefault();
+      visual.paused ? visual.play().catch(function(){}) : visual.pause();
+    }
+  });
+
+  start.addEventListener('click', function(){
+    started = true;
+    goFullscreen();
+    visual.muted = false;
+    visual.volume = slider.value / 100;
+    visual.currentTime = 0;
+    visual.play().catch(function(){
+      // Fallback: some browsers refuse unmuted autoplay; start muted, user can unmute
+      visual.muted = true;
+      visual.play().catch(function(){});
+      refreshMuteIcon();
+    });
+    vol.classList.add('on');
+    refreshMuteIcon();
+    enter.classList.add('hidden');
+  });
+
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden && started && !visual.paused) visual.play().catch(function(){});
+  });
+})();
+</script>
+</body>
+</html>
